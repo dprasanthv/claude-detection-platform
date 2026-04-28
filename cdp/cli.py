@@ -3,6 +3,7 @@
 Subcommands grow as phases land. Current:
 - ``cdp ingest`` — Phase 1, synthetic or Mordor telemetry → Parquet.
 - ``cdp detect`` — Phase 2, run Sigma rules against the store, emit Alerts.
+- ``cdp validate`` — Phase 2, parse + compile every rule (used by CI).
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from rich.table import Table
 from cdp.config import Settings
 from cdp.engine import DEFAULT_RULES_DIR, DetectionEngine
 from cdp.ingest import generate_synthetic_dataset, load_mordor
+from cdp.sigma import compile_rule, load_rules, resolve_table
 from cdp.store import Store
 
 app = typer.Typer(add_completion=False, help="Claude Detection Platform CLI", no_args_is_help=True)
@@ -127,6 +129,67 @@ def detect(
     for rule_id, count in sorted(counts.items()):
         breakdown.add_row(rule_id, str(count))
     console.print(breakdown)
+
+
+@app.command()
+def validate(
+    rules_dir: Path = typer.Option(
+        DEFAULT_RULES_DIR, "--rules-dir", help="Directory containing Sigma rule YAML files."
+    ),
+    strict: bool = typer.Option(
+        False,
+        "--strict/--no-strict",
+        help="Treat rules whose logsource does not resolve to a known table as failures.",
+    ),
+) -> None:
+    """Parse and compile every rule under ``rules_dir``. Non-zero exit on failure.
+
+    Designed for CI and pre-commit hooks: catches malformed YAML, unsupported
+    modifiers, condition-grammar errors, and (optionally) unmapped logsources
+    before they reach a ``cdp detect`` run.
+    """
+    target = rules_dir.expanduser().resolve()
+    if not target.exists():
+        console.print(f"[red]rules dir not found:[/red] {target}")
+        raise typer.Exit(code=2)
+
+    rules = load_rules(target)
+    if not rules:
+        console.print(f"[yellow]no rules found under[/yellow] {target}")
+        raise typer.Exit(code=2)
+
+    failures: list[tuple[str, str]] = []
+    skipped: list[str] = []
+    for rule in rules:
+        if resolve_table(rule.logsource) is None:
+            if strict:
+                failures.append((rule.id, f"unmapped logsource: {rule.logsource}"))
+            else:
+                skipped.append(rule.id)
+            continue
+        try:
+            compile_rule(rule)
+        except Exception as exc:
+            failures.append((rule.id, f"{type(exc).__name__}: {exc}"))
+
+    summary = Table(title="Sigma rule validation", show_header=True, header_style="bold cyan")
+    summary.add_column("metric")
+    summary.add_column("count", justify="right")
+    summary.add_row("total", str(len(rules)))
+    summary.add_row("passed", str(len(rules) - len(failures) - len(skipped)))
+    summary.add_row("skipped (unmapped logsource)", str(len(skipped)))
+    summary.add_row("[red]failed[/red]", f"[red]{len(failures)}[/red]")
+    console.print(summary)
+
+    if skipped and not strict:
+        console.print(f"[dim]skipped (no table mapping): {', '.join(skipped)}[/dim]")
+
+    if failures:
+        for rule_id, reason in failures:
+            console.print(f"[red]✗ {rule_id}[/red] — {reason}")
+        raise typer.Exit(code=1)
+
+    console.print("[green]all rules valid[/green]")
 
 
 @app.command()

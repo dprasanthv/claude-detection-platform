@@ -31,3 +31,31 @@ docker compose run --rm cdp cdp detect --format json | head -50
 ```
 
 Generated Parquet files land in `./data/` on the host thanks to the bind mount in `docker-compose.yml`. Sigma rules under `./detections/` are also bind-mounted into the container, so editing or adding a rule on the host takes effect on the next `cdp detect` run without rebuilding the image. The rule authoring guide (modifiers, condition grammar, MITRE coverage table) lives in [`detections/README.md`](detections/README.md).
+
+## Tests
+
+The test suite is hermetic: no network calls, no Anthropic API key required, no writes to the repo's `./data/` directory. The synthetic dataset is generated once per pytest session and copied into per-test tmp dirs.
+
+```bash
+# Full test suite (~85 tests covering models, store, ingest, sigma, engine, cli)
+docker compose run --rm cdp pytest -q
+
+# With coverage report (terminal, missing-line annotations)
+docker compose run --rm cdp pytest --cov=cdp --cov-report=term-missing
+
+# Run a single module or test
+docker compose run --rm cdp pytest tests/test_engine.py -v
+docker compose run --rm cdp pytest tests/test_sigma.py::test_compile_list_value_or_expanded
+
+# Lint + type-check (matches the standards enforced in pyproject.toml)
+docker compose run --rm cdp ruff check cdp tests
+docker compose run --rm cdp mypy cdp
+
+# Validate every Sigma rule under detections/ without running detections.
+# Exits 0 on success, 1 on any compile failure. Add --strict to also fail on
+# rules whose logsource doesn't map to a known table.
+docker compose run --rm cdp cdp validate
+docker compose run --rm cdp cdp validate --strict
+```
+
+`tests/` is bind-mounted into the container alongside `cdp/` and `detections/`, so editing a test on the host takes effect on the next `pytest` invocation without rebuilding the image.

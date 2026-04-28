@@ -9,12 +9,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Copy project metadata + package source + detection rules. The compose file
-# bind-mounts ./cdp and ./detections on top of /app/* at runtime so host edits
-# propagate without rebuilding.
+# Copy project metadata + package source + detection rules + tests. The compose
+# file bind-mounts ./cdp, ./detections, and ./tests on top of /app/* at runtime
+# so host edits propagate without rebuilding.
 COPY pyproject.toml README.md ./
 COPY cdp/ ./cdp/
 COPY detections/ ./detections/
+COPY tests/ ./tests/
 
 # Editable install + dev extras (ruff, mypy, pytest).
 RUN pip install -e '.[dev]'
