@@ -1,0 +1,30 @@
+title: Brute Force Login Against Privileged Account
+id: cdp.credential_access.brute_force_admin_login
+description: >-
+  Failed authentication attempts against the ``admin`` user originating from a
+  non-RFC1918 source IP. The ``filter`` clause excludes the typical internal
+  ranges so that one-off mistyped passwords from corp networks do not generate
+  noise. Real production rules would also gate on an aggregated count over a
+  short window; we emit per-event alerts here and let triage (Phase 3) decide.
+status: test
+level: high
+logsource:
+  category: authentication
+detection:
+  selection:
+    username: admin
+    result: failure
+  internal_ranges:
+    source_ip|startswith:
+      - '10.'
+      - '192.168.'
+      - '172.16.'
+  condition: selection and not internal_ranges
+tags:
+  - attack.credential_access
+  - attack.t1110
+falsepositives:
+  - Locked-out admin retrying from a remote VPN exit not in the corp ranges.
+  - Penetration test from an external scanner.
+references:
+  - https://attack.mitre.org/techniques/T1110/

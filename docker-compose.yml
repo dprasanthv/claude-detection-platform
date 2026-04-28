@@ -13,5 +13,7 @@ services:
     volumes:
       # Live source mount — host edits in cdp/ propagate without rebuilding.
       - ./cdp:/app/cdp
+      # Sigma rules are also live-mounted so authoring/editing rules is iterative.
+      - ./detections:/app/detections
       # Generated Parquet/JSONL files persist on host and stay inspectable.
       - ./data:/app/data

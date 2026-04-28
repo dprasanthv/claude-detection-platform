@@ -1,0 +1,26 @@
+title: Large S3 GetObject Egress Event
+id: cdp.exfiltration.s3_large_object_egress
+description: >-
+  A single ``GetObject`` call returning more than 50 MB. Useful as a coarse
+  filter for staging/exfiltration over web services (T1567.002). A production
+  deployment would window-aggregate by ``userIdentity_userName`` and
+  ``sourceIPAddress`` to bound noise; we keep it per-event here so the demo
+  emits multiple alerts that triage can group.
+status: test
+level: high
+logsource:
+  product: aws
+  service: cloudtrail
+detection:
+  selection:
+    eventName: GetObject
+    eventSource: s3.amazonaws.com
+    bytes_out|gt: 50000000
+  condition: selection
+tags:
+  - attack.exfiltration
+  - attack.t1567.002
+falsepositives:
+  - Legitimate analytics or backup jobs that pull large objects.
+references:
+  - https://attack.mitre.org/techniques/T1567/002/

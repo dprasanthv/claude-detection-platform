@@ -1,0 +1,27 @@
+title: AWS IAM Administrator Policy Attached To User
+id: cdp.credential_access.iam_admin_policy_attached
+description: >-
+  Detects ``AttachUserPolicy`` calls that grant the AWS-managed
+  ``AdministratorAccess`` policy. Direct attachment of an admin policy to an
+  IAM user (rather than via a role + assume-role flow) is a classic privilege
+  escalation step after credential theft.
+status: test
+level: critical
+logsource:
+  product: aws
+  service: cloudtrail
+detection:
+  selection:
+    eventName: AttachUserPolicy
+    eventSource: iam.amazonaws.com
+  policy:
+    requestParameters|contains: AdministratorAccess
+  condition: selection and policy
+tags:
+  - attack.credential_access
+  - attack.t1078
+falsepositives:
+  - Bootstrapping a new account where a break-glass admin user is provisioned.
+references:
+  - https://attack.mitre.org/techniques/T1078/
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_managed-vs-inline.html

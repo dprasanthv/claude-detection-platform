@@ -1,0 +1,29 @@
+title: PowerShell EncodedCommand Invocation
+id: cdp.execution.powershell_encoded_command
+description: >-
+  PowerShell launched with ``-EncodedCommand`` (or its short forms ``-enc`` /
+  ``-e``) is the canonical way attacker tooling (Empire, Cobalt Strike, custom
+  loaders) hides its payload. Legitimate use is rare outside of installer
+  scripts and packaging tooling.
+status: test
+level: high
+logsource:
+  product: windows
+  category: process_creation
+detection:
+  selection:
+    Image|endswith: \powershell.exe
+  encoded:
+    CommandLine|contains:
+      - ' -EncodedCommand '
+      - ' -encodedcommand '
+      - ' -enc '
+      - ' -ec '
+  condition: selection and encoded
+tags:
+  - attack.execution
+  - attack.t1059.001
+falsepositives:
+  - Some legacy installer scripts use ``-EncodedCommand`` to bundle JSON args.
+references:
+  - https://attack.mitre.org/techniques/T1059/001/
