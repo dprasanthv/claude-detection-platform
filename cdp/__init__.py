@@ -2,6 +2,13 @@
 
 __version__ = "0.1.0"
 
-from cdp.models import Alert, Event, SigmaRule, TriageResult
+from cdp.models import Alert, Enrichment, Playbook, SigmaRule, TriageResult
 
-__all__ = ["Alert", "Event", "SigmaRule", "TriageResult", "__version__"]
+__all__ = [
+    "Alert",
+    "Enrichment",
+    "Playbook",
+    "SigmaRule",
+    "TriageResult",
+    "__version__",
+]
