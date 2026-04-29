@@ -2,7 +2,7 @@
 
 Sigma-based detection-as-code platform with Claude-powered alert triage and response playbooks. Built to demonstrate end-to-end detection & response engineering: telemetry ingestion, detection rules, AI-augmented analysis, and measurable evals.
 
-The current build provides reproducible synthetic telemetry generation across three event sources (Windows process creation, authentication, AWS CloudTrail) with deterministic attacks planted in benign noise, JSONL→Parquet conversion via DuckDB, a SQL query layer over the resulting Parquet files, and a Sigma-based detection engine that compiles 6 rules across 4 ATT&CK tactics (credential_access, execution, persistence, exfiltration) into parameterized DuckDB queries.
+The current build provides reproducible synthetic telemetry generation across three event sources (Windows process creation, authentication, AWS CloudTrail) with deterministic attacks planted in benign noise, JSONL→Parquet conversion via DuckDB, a SQL query layer over the resulting Parquet files, a Sigma-based detection engine that compiles 6 rules across 4 ATT&CK tactics (credential_access, execution, persistence, exfiltration) into parameterized DuckDB queries, and a Claude-powered triage + playbook layer that classifies each alert as `true_positive | false_positive | needs_investigation` and generates a tailored 5–8 step containment + investigation plan. A deterministic offline mock keeps the entire pipeline runnable without an Anthropic API key.
 
 ## Run
 
@@ -32,12 +32,40 @@ docker compose run --rm cdp cdp detect --format json | head -50
 
 Generated Parquet files land in `./data/` on the host thanks to the bind mount in `docker-compose.yml`. Sigma rules under `./detections/` are also bind-mounted into the container, so editing or adding a rule on the host takes effect on the next `cdp detect` run without rebuilding the image. The rule authoring guide (modifiers, condition grammar, MITRE coverage table) lives in [`detections/README.md`](detections/README.md).
 
+## Triage and playbooks
+
+The Claude AI layer adds three subcommands. All accept input via `--alert-json FILE`, stdin, or `--alert-id <id>` (re-runs detection to look up a single alert). All have a `--mock` flag that forces the deterministic offline path even when `ANTHROPIC_API_KEY` is set.
+
+```bash
+# Attach static enrichment (IP class, asset criticality, threat-intel hits)
+docker compose run --rm cdp bash -c "cdp detect --format json | head -c 4000 | cdp enrich"
+
+# Triage one alert via the offline mock — true_positive / false_positive / needs_investigation
+docker compose run --rm cdp cdp triage --alert-id cdp.exfiltration.s3_large_object_egress-f1c6f3c29ee0 --mock
+
+# Pipe pattern: detect → filter to one rule → triage with mock
+docker compose run --rm cdp bash -c \
+  "cdp detect --format json | python -c 'import json,sys; \
+   print(json.dumps([a for a in json.load(sys.stdin) \
+   if a[\"rule_id\"]==\"cdp.persistence.new_service_install\"]))' \
+   | cdp triage --mock"
+
+# Generate a containment + investigation playbook (5-8 steps, MITRE-tagged)
+docker compose run --rm cdp cdp playbook --alert-id cdp.persistence.new_service_install-87302844ce97 --mock
+
+# Real Claude (set the key in your shell or in a project-root .env file)
+ANTHROPIC_API_KEY=sk-ant-... docker compose run --rm -e ANTHROPIC_API_KEY cdp \
+  cdp triage --alert-id cdp.execution.powershell_encoded_command-...
+```
+
+Triage output is a `TriageResult` per alert with `verdict`, `confidence` ∈ [0, 1], `reasoning`, and 3-5 `next_steps`. Playbook output is a `Playbook` per alert with `title`, `summary`, and 5-8 numbered `steps` referencing specific event fields, the asset's owner from `enrichment/assets.yaml`, and the rule's MITRE techniques. Both are emitted as JSON (one record per alert) for downstream piping. The asset DB is bind-mounted into the container — edit `enrichment/assets.yaml` on the host and the next run picks it up.
+
 ## Tests
 
 The test suite is hermetic: no network calls, no Anthropic API key required, no writes to the repo's `./data/` directory. The synthetic dataset is generated once per pytest session and copied into per-test tmp dirs.
 
 ```bash
-# Full test suite (~85 tests covering models, store, ingest, sigma, engine, cli)
+# Full test suite (~157 tests covering models, store, ingest, sigma, engine, prompts, enrich, triage, playbook, cli)
 docker compose run --rm cdp pytest -q
 
 # With coverage report (terminal, missing-line annotations)

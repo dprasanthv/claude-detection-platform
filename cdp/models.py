@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 TriageVerdict = Literal["true_positive", "false_positive", "needs_investigation"]
 SeverityLevel = Literal["informational", "low", "medium", "high", "critical"]
+AssetCriticality = Literal["low", "medium", "high", "critical", "unknown"]
 
 
 class SigmaRule(BaseModel):
@@ -67,7 +68,7 @@ class Enrichment(BaseModel):
     alert_id: str
     ip_is_private: bool | None = None
     ip_country: str | None = None
-    asset_criticality: Literal["low", "medium", "high", "critical", "unknown"] = "unknown"
+    asset_criticality: AssetCriticality = "unknown"
     asset_owner: str | None = None
     asset_env: str | None = None
     extras: dict[str, Any] = Field(default_factory=dict)

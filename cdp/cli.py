@@ -4,13 +4,18 @@ Subcommands grow as phases land. Current:
 - ``cdp ingest`` — Phase 1, synthetic or Mordor telemetry → Parquet.
 - ``cdp detect`` — Phase 2, run Sigma rules against the store, emit Alerts.
 - ``cdp validate`` — Phase 2, parse + compile every rule (used by CI).
+- ``cdp enrich`` — Phase 3, attach static enrichment to one or more alerts.
+- ``cdp triage`` — Phase 3, classify alerts via Claude (or the offline mock).
+- ``cdp playbook`` — Phase 3, generate IR playbooks via Claude (or the offline mock).
 """
 
 from __future__ import annotations
 
 import json
+import sys
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -18,9 +23,13 @@ from rich.table import Table
 
 from cdp.config import Settings
 from cdp.engine import DEFAULT_RULES_DIR, DetectionEngine
+from cdp.enrich import DEFAULT_ASSET_DB, enrich_alert, load_asset_db
 from cdp.ingest import generate_synthetic_dataset, load_mordor
+from cdp.models import Alert, EnrichedAlert
+from cdp.playbook import MockPlaybookGenerator, make_playbook_generator
 from cdp.sigma import compile_rule, load_rules, resolve_table
 from cdp.store import Store
+from cdp.triage import MockTriager, make_triager
 
 app = typer.Typer(add_completion=False, help="Claude Detection Platform CLI", no_args_is_help=True)
 console = Console()
@@ -193,11 +202,148 @@ def validate(
 
 
 @app.command()
+def enrich(
+    alert_json: Path | None = typer.Option(
+        None,
+        "--alert-json",
+        help="Read alert(s) from this JSON file. If omitted and stdin is non-empty, "
+        "read from stdin. Accepts a single alert object or a list.",
+    ),
+    asset_db: Path = typer.Option(
+        DEFAULT_ASSET_DB, "--asset-db", help="Path to the YAML asset DB."
+    ),
+) -> None:
+    """Attach static enrichment (IP class, asset criticality) to one or more alerts."""
+    alerts = _load_alerts(alert_json)
+    if not alerts:
+        console.print("[yellow]no alerts on input[/yellow]")
+        raise typer.Exit(code=1)
+    db = load_asset_db(asset_db)
+    enrichments = [enrich_alert(a, db).model_dump(mode="json") for a in alerts]
+    typer.echo(json.dumps(enrichments, indent=2, default=str))
+
+
+@app.command()
+def triage(
+    alert_json: Path | None = typer.Option(None, "--alert-json", help="Path to alert JSON."),
+    alert_id: str | None = typer.Option(
+        None,
+        "--alert-id",
+        help="Re-run detection and triage the single alert with this id (uses --rules-dir).",
+    ),
+    rules_dir: Path = typer.Option(DEFAULT_RULES_DIR, "--rules-dir"),
+    asset_db: Path = typer.Option(DEFAULT_ASSET_DB, "--asset-db"),
+    use_mock: bool = typer.Option(
+        False, "--mock", help="Force the deterministic offline triager."
+    ),
+    limit: int = typer.Option(
+        0, "--limit", help="Triage at most N alerts (0 = all). Useful when piping from `cdp detect`."
+    ),
+) -> None:
+    """Classify one or more alerts as TP / FP / needs_investigation."""
+    alerts = _resolve_alerts(alert_json=alert_json, alert_id=alert_id, rules_dir=rules_dir)
+    if limit > 0:
+        alerts = alerts[:limit]
+    if not alerts:
+        console.print("[yellow]no alerts to triage[/yellow]")
+        raise typer.Exit(code=1)
+
+    db = load_asset_db(asset_db)
+    triager = MockTriager() if use_mock else make_triager()
+
+    results = []
+    for a in alerts:
+        enriched = EnrichedAlert(alert=a, enrichment=enrich_alert(a, db))
+        results.append(triager.triage(enriched).model_dump(mode="json"))
+
+    typer.echo(json.dumps(results, indent=2, default=str))
+
+
+@app.command()
+def playbook(
+    alert_json: Path | None = typer.Option(None, "--alert-json"),
+    alert_id: str | None = typer.Option(
+        None,
+        "--alert-id",
+        help="Re-run detection and generate a playbook for the single alert with this id.",
+    ),
+    rules_dir: Path = typer.Option(DEFAULT_RULES_DIR, "--rules-dir"),
+    asset_db: Path = typer.Option(DEFAULT_ASSET_DB, "--asset-db"),
+    use_mock: bool = typer.Option(False, "--mock", help="Force the deterministic offline generator."),
+    limit: int = typer.Option(0, "--limit"),
+) -> None:
+    """Generate a containment + investigation playbook for one or more alerts."""
+    alerts = _resolve_alerts(alert_json=alert_json, alert_id=alert_id, rules_dir=rules_dir)
+    if limit > 0:
+        alerts = alerts[:limit]
+    if not alerts:
+        console.print("[yellow]no alerts to plan[/yellow]")
+        raise typer.Exit(code=1)
+
+    db = load_asset_db(asset_db)
+    generator = MockPlaybookGenerator() if use_mock else make_playbook_generator()
+
+    results = []
+    for a in alerts:
+        enriched = EnrichedAlert(alert=a, enrichment=enrich_alert(a, db))
+        results.append(generator.generate(enriched).model_dump(mode="json"))
+
+    typer.echo(json.dumps(results, indent=2, default=str))
+
+
+@app.command()
 def version() -> None:
     """Print the installed package version."""
     import cdp
 
     console.print(cdp.__version__)
+
+
+# ---------- shared helpers (Phase 3 onward) ----------
+
+
+def _load_alerts(alert_json: Path | None) -> list[Alert]:
+    """Read alerts from --alert-json file, or stdin if no file given.
+
+    Accepts either a single alert object or a list of alert objects (the
+    shape ``cdp detect --format json`` emits).
+    """
+    if alert_json is not None:
+        raw = alert_json.read_text()
+    elif not sys.stdin.isatty():
+        raw = sys.stdin.read()
+    else:
+        return []
+    if not raw.strip():
+        return []
+    payload = json.loads(raw)
+    items: list[Any] = payload if isinstance(payload, list) else [payload]
+    return [Alert.model_validate(item) for item in items]
+
+
+def _resolve_alerts(
+    *,
+    alert_json: Path | None,
+    alert_id: str | None,
+    rules_dir: Path,
+) -> list[Alert]:
+    """Either look up a single alert by id (via re-running detection) or load from file/stdin."""
+    if alert_id:
+        with Store() as store:
+            store.load_all()
+            if not store.tables():
+                console.print(
+                    "[yellow]No telemetry loaded. Run `cdp ingest --synthetic` first.[/yellow]"
+                )
+                raise typer.Exit(code=1)
+            engine = DetectionEngine(store, rules_dir=rules_dir)
+            engine.load_rules()
+            alerts = [a for a in engine.run_all() if a.id == alert_id]
+        if not alerts:
+            console.print(f"[red]no alert with id `{alert_id}` in the latest detection run[/red]")
+            raise typer.Exit(code=1)
+        return alerts
+    return _load_alerts(alert_json)
 
 
 if __name__ == "__main__":

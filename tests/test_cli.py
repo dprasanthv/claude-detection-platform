@@ -25,7 +25,7 @@ def test_version_prints_package_version() -> None:
 def test_help_lists_every_subcommand() -> None:
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    for cmd in ("ingest", "detect", "validate", "version"):
+    for cmd in ("ingest", "detect", "validate", "enrich", "triage", "playbook", "version"):
         assert cmd in result.stdout
 
 
@@ -175,3 +175,139 @@ def test_validate_empty_rules_dir_exits_2(tmp_path: Path) -> None:
     rules_dir.mkdir()
     result = runner.invoke(app, ["validate", "--rules-dir", str(rules_dir)])
     assert result.exit_code == 2
+
+
+# ---------- enrich / triage / playbook helpers ----------
+
+
+def _detect_alerts_json(tmp_data_dir: Path, detections_dir: Path) -> str:
+    """Run ingest + detect to produce the alerts JSON used by Phase 3 tests."""
+    runner.invoke(app, ["ingest", "--synthetic", "--data-dir", str(tmp_data_dir)])
+    result = runner.invoke(
+        app,
+        ["detect", "--rules-dir", str(detections_dir), "--format", "json"],
+    )
+    assert result.exit_code == 0, result.stdout
+    return result.stdout
+
+
+# ---------- enrich ----------
+
+
+def test_enrich_reads_alert_from_file(
+    tmp_data_dir: Path, detections_dir: Path, tmp_path: Path
+) -> None:
+    payload = _detect_alerts_json(tmp_data_dir, detections_dir)
+    alerts = json.loads(payload)
+    one = tmp_path / "one.json"
+    one.write_text(json.dumps(alerts[0]))
+    result = runner.invoke(app, ["enrich", "--alert-json", str(one)])
+    assert result.exit_code == 0, result.stdout
+    enriched = json.loads(result.stdout)
+    assert isinstance(enriched, list)
+    assert len(enriched) == 1
+    assert enriched[0]["alert_id"] == alerts[0]["id"]
+
+
+def test_enrich_with_no_input_exits_1(tmp_data_dir: Path) -> None:
+    """No file and no stdin → graceful exit, not a crash."""
+    result = runner.invoke(app, ["enrich"])
+    assert result.exit_code == 1
+    assert "no alerts" in result.stdout.lower()
+
+
+# ---------- triage ----------
+
+
+def test_triage_with_alert_id_runs_against_synthetic(
+    tmp_data_dir: Path, detections_dir: Path
+) -> None:
+    payload = _detect_alerts_json(tmp_data_dir, detections_dir)
+    alerts = json.loads(payload)
+    target = next(a for a in alerts if a["rule_id"] == "cdp.execution.powershell_encoded_command")
+    result = runner.invoke(
+        app,
+        [
+            "triage",
+            "--alert-id",
+            target["id"],
+            "--rules-dir",
+            str(detections_dir),
+            "--mock",  # explicit, even though the fixture scrubs the API key.
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    out = json.loads(result.stdout)
+    assert len(out) == 1
+    assert out[0]["alert_id"] == target["id"]
+    assert out[0]["verdict"] in {"true_positive", "false_positive", "needs_investigation"}
+    assert 0.0 <= out[0]["confidence"] <= 1.0
+
+
+def test_triage_with_unknown_alert_id_exits_1(
+    tmp_data_dir: Path, detections_dir: Path
+) -> None:
+    _detect_alerts_json(tmp_data_dir, detections_dir)
+    result = runner.invoke(
+        app,
+        [
+            "triage",
+            "--alert-id",
+            "no-such-alert-id",
+            "--rules-dir",
+            str(detections_dir),
+            "--mock",
+        ],
+    )
+    assert result.exit_code == 1
+    assert "no alert" in result.stdout.lower()
+
+
+def test_triage_from_file_with_limit(
+    tmp_data_dir: Path, detections_dir: Path, tmp_path: Path
+) -> None:
+    payload = _detect_alerts_json(tmp_data_dir, detections_dir)
+    f = tmp_path / "alerts.json"
+    f.write_text(payload)
+    result = runner.invoke(
+        app,
+        ["triage", "--alert-json", str(f), "--mock", "--limit", "3"],
+    )
+    assert result.exit_code == 0, result.stdout
+    out = json.loads(result.stdout)
+    assert len(out) == 3
+    for r in out:
+        assert {"alert_id", "verdict", "confidence", "reasoning", "next_steps", "model"} <= r.keys()
+
+
+# ---------- playbook ----------
+
+
+def test_playbook_with_alert_id_renders_a_template(
+    tmp_data_dir: Path, detections_dir: Path
+) -> None:
+    payload = _detect_alerts_json(tmp_data_dir, detections_dir)
+    alerts = json.loads(payload)
+    target = next(a for a in alerts if a["rule_id"] == "cdp.persistence.new_service_install")
+    result = runner.invoke(
+        app,
+        [
+            "playbook",
+            "--alert-id",
+            target["id"],
+            "--rules-dir",
+            str(detections_dir),
+            "--mock",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    out = json.loads(result.stdout)
+    assert len(out) == 1
+    pb = out[0]
+    assert pb["alert_id"] == target["id"]
+    assert pb["model"] == "cdp-mock-playbook-v1"
+    assert 5 <= len(pb["steps"]) <= 8
+    assert "T1543.003" in pb["mitre_techniques"]
+    # Title was rendered with the actual hostname from the matched event.
+    assert "SRV-DB-01" in pb["title"]
+
