@@ -1,0 +1,25 @@
+services:
+  cdp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: claude-detection-platform:dev
+    environment:
+      CDP_DATA_DIR: /app/data
+      CDP_MODEL: ${CDP_MODEL:-claude-sonnet-4-5}
+      # ANTHROPIC_API_KEY flows through from the host shell or a project-root
+      # .env file (compose v2 auto-loads .env for variable substitution).
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      # Live source mount — host edits in cdp/ propagate without rebuilding.
+      - ./cdp:/app/cdp
+      # Sigma rules are also live-mounted so authoring/editing rules is iterative.
+      - ./detections:/app/detections
+      # Asset DB (Phase 3 enrichment) is live-mounted for the same reason.
+      - ./enrichment:/app/enrichment
+      # Eval harness (Phase 5) — ground truth + reports.
+      - ./evals:/app/evals
+      # Tests live-mounted so `docker compose run --rm cdp pytest` picks up edits.
+      - ./tests:/app/tests
+      # Generated Parquet/JSONL files persist on host and stay inspectable.
+      - ./data:/app/data

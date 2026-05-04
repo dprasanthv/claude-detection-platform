@@ -1,0 +1,85 @@
+# Static asset DB used by `cdp/enrich.py`.
+#
+# This is the SOC stand-in for a real ITAM/CMDB. Keys are host names and IAM
+# user names exactly as they appear in the synthetic dataset (see
+# `cdp/ingest.py`). Adding a new host: bump this file — no code changes.
+#
+# Schema:
+#   hosts:        <hostname>: { criticality, owner, env, notes? }
+#   iam_users:    <username>: { criticality, owner, env, notes? }
+#   known_bad_ips: <ip>:      { country, notes? }
+#
+# `criticality` must be one of: low | medium | high | critical | unknown.
+# Mismatched values fail Pydantic validation in `cdp.models.Enrichment`.
+
+hosts:
+  WKST-ALICE-01:
+    criticality: medium
+    owner: alice@corp.example
+    env: corporate
+    notes: Standard analyst workstation. Office macros enabled in restricted mode.
+
+  WKST-BOB-02:
+    criticality: medium
+    owner: bob@corp.example
+    env: corporate
+
+  WKST-ENG-03:
+    criticality: medium
+    owner: engineering@corp.example
+    env: corporate
+
+  SRV-DB-01:
+    criticality: critical
+    owner: data-platform@corp.example
+    env: production
+    notes: >-
+      Primary customer data warehouse. Service accounts only — any interactive
+      logon or persistence primitive (sc.exe, scheduled task, registry Run)
+      should be treated as Sev-1 until proven benign.
+
+  SRV-WEB-01:
+    criticality: high
+    owner: platform-eng@corp.example
+    env: production
+
+  AUTH-SVC-01:
+    criticality: critical
+    owner: corp-it@corp.example
+    env: production
+    notes: >-
+      Centralized authentication service (LDAP + RADIUS). Brute-force
+      detections here always page IR; a successful auth from an external IP
+      against `admin` is automatically Sev-1.
+
+iam_users:
+  dev-alice:
+    criticality: medium
+    owner: alice@corp.example
+    env: aws-dev
+
+  dev-bob:
+    criticality: high
+    owner: bob@corp.example
+    env: aws-prod
+    notes: >-
+      Developer with read access to the production ``acme-customer-pii``
+      bucket. Any IAM policy escalation or large S3 GetObject burst from
+      this user is treated as a candidate exfiltration event.
+
+  ops-carol:
+    criticality: critical
+    owner: ops@corp.example
+    env: aws-prod
+
+# Mock threat-intel hits used as a stand-in for an external feed (e.g.
+# Recorded Future, GreyNoise). Country codes are ISO 3166-1 alpha-2.
+known_bad_ips:
+  185.220.101.45:
+    country: NL
+    notes: >-
+      Tor exit node observed in our threat-intel feed (mock). The synthetic
+      dataset uses this IP for the planted T1110 brute-force burst, the
+      T1078 IAM AdministratorAccess attach, and the T1567.002 S3 egress
+      pattern, so any alert sourcing from this IP should triage as a true
+      positive in the seed run.

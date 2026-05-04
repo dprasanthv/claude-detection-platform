@@ -1,0 +1,288 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-05-04T02:03:39+00:00",
+  "triagers": [
+    {
+      "name": "MockTriager",
+      "model": "cdp-mock-triager-v1",
+      "predictions": [
+        {
+          "alert_id": "cdp.credential_access.brute_force_admin_login-9a68694f43f0",
+          "rule_id": "cdp.credential_access.brute_force_admin_login",
+          "ground_truth": "true_positive",
+          "predicted": "true_positive",
+          "confidence": 0.8,
+          "reasoning": "Rule `cdp.credential_access.brute_force_admin_login` fired at severity `high`. MITRE: T1110. Source IP is public/external (country=NL). Affected asset has criticality `critical` (owner=corp-it@corp.example).",
+          "rationale": "Sustained 50-event admin brute-force burst from a known Tor exit node \u2014 textbook T1110."
+        },
+        {
+          "alert_id": "cdp.credential_access.brute_force_admin_login-cf229575510a",
+          "rule_id": "cdp.credential_access.brute_force_admin_login",
+          "ground_truth": "true_positive",
+          "predicted": "true_positive",
+          "confidence": 0.8,
+          "reasoning": "Rule `cdp.credential_access.brute_force_admin_login` fired at severity `high`. MITRE: T1110. Source IP is public/external (country=NL). Affected asset has criticality `critical` (owner=corp-it@corp.example).",
+          "rationale": "Sustained 50-event admin brute-force burst from a known Tor exit node \u2014 textbook T1110."
+        },
+        {
+          "alert_id": "cdp.credential_access.brute_force_admin_login-4b433b08aeb5",
+          "rule_id": "cdp.credential_access.brute_force_admin_login",
+          "ground_truth": "true_positive",
+          "predicted": "true_positive",
+          "confidence": 0.8,
+          "reasoning": "Rule `cdp.credential_access.brute_force_admin_login` fired at severity `high`. MITRE: T1110. Source IP is public/external (country=NL). Affected asset has criticality `critical` (owner=corp-it@corp.example).",
+          "rationale": "Sustained 50-event admin brute-force burst from a known Tor exit node \u2014 textbook T1110."
+        },
+        {
+          "alert_id": "cdp.credential_access.brute_force_admin_login-9691cc184878",
+          "rule_id": "cdp.credential_access.brute_force_admin_login",
+          "ground_truth": "true_positive",
+          "predicted": "true_positive",
+          "confidence": 0.8,
+          "reasoning": "Rule `cdp.credential_access.brute_force_admin_login` fired at severity `high`. MITRE: T1110. Source IP is public/external (country=NL). Affected asset has criticality `critical` (owner=corp-it@corp.example).",
+          "rationale": "Sustained 50-event admin brute-force burst from a known Tor exit node \u2014 textbook T1110."
+        },
+        {
+          "alert_id": "cdp.credential_access.brute_force_admin_login-caabe35b3183",
+          "rule_id": "cdp.credential_access.brute_force_admin_login",
+          "ground_truth": "false_positive",
+          "predicted": "true_positive",
+          "confidence": 0.75,
+          "reasoning": "Rule `cdp.credential_access.brute_force_admin_login` fired at severity `high`. MITRE: T1110. Affected asset has criticality `critical` (owner=corp-it@corp.example).",
+          "rationale": "Small 6-event admin failure burst from a public-but-unflagged IP, immediately followed by a successful auth \u2014 classic 'forgot the password, got it on the 7th try' scenario."
+        },
+        {
+          "alert_id": "cdp.credential_access.brute_force_admin_login-5c51efbb2230",
+          "rule_id": "cdp.credential_access.brute_force_admin_login",
+          "ground_truth": "false_positive",
+          "predicted": "true_positive",
+          "confidence": 0.75,
+          "reasoning": "Rule `cdp.credential_access.brute_force_admin_login` fired at severity `high`. MITRE: T1110. Affected asset has criticality `critical` (owner=corp-it@corp.example).",
+          "rationale": "Small 6-event admin failure burst from a public-but-unflagged IP, immediately followed by a successful auth \u2014 classic 'forgot the password, got it on the 7th try' scenario."
+        },
+        {
+          "alert_id": "cdp.credential_access.brute_force_admin_login-6460f75b5582",
+          "rule_id": "cdp.credential_access.brute_force_admin_login",
+          "ground_truth": "false_positive",
+          "predicted": "true_positive",
+          "confidence": 0.75,
+          "reasoning": "Rule `cdp.credential_access.brute_force_admin_login` fired at severity `high`. MITRE: T1110. Affected asset has criticality `critical` (owner=corp-it@corp.example).",
+          "rationale": "Small 6-event admin failure burst from a public-but-unflagged IP, immediately followed by a successful auth \u2014 classic 'forgot the password, got it on the 7th try' scenario."
+        },
+        {
+          "alert_id": "cdp.credential_access.iam_admin_policy_attached-74a41e9105c5",
+          "rule_id": "cdp.credential_access.iam_admin_policy_attached",
+          "ground_truth": "true_positive",
+          "predicted": "true_positive",
+          "confidence": 0.95,
+          "reasoning": "Rule `cdp.credential_access.iam_admin_policy_attached` fired at severity `critical`. MITRE: T1078. Matched event contains suspicious keyword(s): administratoraccess, attachuserpolicy. Source IP is public/external (country=NL). Affected asset has criticality `high` (owner=bob@corp.example).",
+          "rationale": "Direct AttachUserPolicy of AWS-managed AdministratorAccess by `dev-bob` from a Tor exit node \u2014 privilege escalation after credential theft (T1078)."
+        },
+        {
+          "alert_id": "cdp.execution.powershell_encoded_command-cedd20a5a0fb",
+          "rule_id": "cdp.execution.powershell_encoded_command",
+          "ground_truth": "true_positive",
+          "predicted": "true_positive",
+          "confidence": 0.85,
+          "reasoning": "Rule `cdp.execution.powershell_encoded_command` fired at severity `high`. MITRE: T1059.001. Matched event contains suspicious keyword(s): encodedcommand.",
+          "rationale": "PowerShell launched with -EncodedCommand by `alice`, parented by WINWORD.EXE \u2014 Empire-style obfuscated payload (T1059.001)."
+        },
+        {
+          "alert_id": "cdp.execution.office_spawns_script_host-cedd20a5a0fb",
+          "rule_id": "cdp.execution.office_spawns_script_host",
+          "ground_truth": "true_positive",
+          "predicted": "true_positive",
+          "confidence": 0.85,
+          "reasoning": "Rule `cdp.execution.office_spawns_script_host` fired at severity `high`. MITRE: T1059. Matched event contains suspicious keyword(s): encodedcommand.",
+          "rationale": "Office product spawned a script interpreter \u2014 textbook malicious-document execution chain (T1566.001 \u2192 T1059)."
+        },
+        {
+          "alert_id": "cdp.execution.office_spawns_script_host-6266d5a1bf6f",
+          "rule_id": "cdp.execution.office_spawns_script_host",
+          "ground_truth": "true_positive",
+          "predicted": "true_positive",
+          "confidence": 0.85,
+          "reasoning": "Rule `cdp.execution.office_spawns_script_host` fired at severity `high`. MITRE: T1059. Matched event contains suspicious keyword(s): iex (, downloadstring, evil.com.",
+          "rationale": "Office product spawned a script interpreter \u2014 textbook malicious-document execution chain (T1566.001 \u2192 T1059)."
+        },
+        {
+          "alert_id": "cdp.persistence.new_service_install-87302844ce97",
+          "rule_id": "cdp.persistence.new_service_install",
+          "ground_truth": "true_positive",
+          "predicted": "true_positive",
+          "confidence": 0.9,
+          "reasoning": "Rule `cdp.persistence.new_service_install` fired at severity `high`. MITRE: T1543.003. Matched event contains suspicious keyword(s): sc.exe create. Affected asset has criticality `critical` (owner=data-platform@corp.example).",
+          "rationale": "`sc.exe create` of an unsigned binary in ProgramData \u2014 service-based persistence primitive (T1543.003)."
+        },
+        {
+          "alert_id": "cdp.exfiltration.s3_large_object_egress-8f29f8ebcc34",
+          "rule_id": "cdp.exfiltration.s3_large_object_egress",
+          "ground_truth": "true_positive",
+          "predicted": "true_positive",
+          "confidence": 0.8,
+          "reasoning": "Rule `cdp.exfiltration.s3_large_object_egress` fired at severity `high`. MITRE: T1567.002. Source IP is public/external (country=NL). Affected asset has criticality `high` (owner=bob@corp.example).",
+          "rationale": "200MB+ GetObject of `acme-customer-pii` by `dev-bob` from a Tor exit node \u2014 T1567.002 candidate."
+        },
+        {
+          "alert_id": "cdp.exfiltration.s3_large_object_egress-4af5a00656df",
+          "rule_id": "cdp.exfiltration.s3_large_object_egress",
+          "ground_truth": "true_positive",
+          "predicted": "true_positive",
+          "confidence": 0.8,
+          "reasoning": "Rule `cdp.exfiltration.s3_large_object_egress` fired at severity `high`. MITRE: T1567.002. Source IP is public/external (country=NL). Affected asset has criticality `high` (owner=bob@corp.example).",
+          "rationale": "200MB+ GetObject of `acme-customer-pii` by `dev-bob` from a Tor exit node \u2014 T1567.002 candidate."
+        },
+        {
+          "alert_id": "cdp.exfiltration.s3_large_object_egress-98ac301e1eee",
+          "rule_id": "cdp.exfiltration.s3_large_object_egress",
+          "ground_truth": "true_positive",
+          "predicted": "true_positive",
+          "confidence": 0.8,
+          "reasoning": "Rule `cdp.exfiltration.s3_large_object_egress` fired at severity `high`. MITRE: T1567.002. Source IP is public/external (country=NL). Affected asset has criticality `high` (owner=bob@corp.example).",
+          "rationale": "200MB+ GetObject of `acme-customer-pii` by `dev-bob` from a Tor exit node \u2014 T1567.002 candidate."
+        },
+        {
+          "alert_id": "cdp.exfiltration.s3_large_object_egress-061ef582f3aa",
+          "rule_id": "cdp.exfiltration.s3_large_object_egress",
+          "ground_truth": "true_positive",
+          "predicted": "true_positive",
+          "confidence": 0.8,
+          "reasoning": "Rule `cdp.exfiltration.s3_large_object_egress` fired at severity `high`. MITRE: T1567.002. Source IP is public/external (country=NL). Affected asset has criticality `high` (owner=bob@corp.example).",
+          "rationale": "200MB+ GetObject of `acme-customer-pii` by `dev-bob` from a Tor exit node \u2014 T1567.002 candidate."
+        },
+        {
+          "alert_id": "cdp.exfiltration.s3_large_object_egress-dc88a0b000b3",
+          "rule_id": "cdp.exfiltration.s3_large_object_egress",
+          "ground_truth": "true_positive",
+          "predicted": "true_positive",
+          "confidence": 0.8,
+          "reasoning": "Rule `cdp.exfiltration.s3_large_object_egress` fired at severity `high`. MITRE: T1567.002. Source IP is public/external (country=NL). Affected asset has criticality `high` (owner=bob@corp.example).",
+          "rationale": "200MB+ GetObject of `acme-customer-pii` by `dev-bob` from a Tor exit node \u2014 T1567.002 candidate."
+        },
+        {
+          "alert_id": "cdp.exfiltration.s3_large_object_egress-ffd66ede9a16",
+          "rule_id": "cdp.exfiltration.s3_large_object_egress",
+          "ground_truth": "false_positive",
+          "predicted": "true_positive",
+          "confidence": 0.7,
+          "reasoning": "Rule `cdp.exfiltration.s3_large_object_egress` fired at severity `high`. MITRE: T1567.002.",
+          "rationale": "80MB GetObject of `acme-analytics-exports` by `dev-alice` from an internal AWS-VPC IP \u2014 sanctioned nightly analytics export, known-good user/bucket combination."
+        },
+        {
+          "alert_id": "cdp.exfiltration.s3_large_object_egress-01e8ec83e5b7",
+          "rule_id": "cdp.exfiltration.s3_large_object_egress",
+          "ground_truth": "false_positive",
+          "predicted": "true_positive",
+          "confidence": 0.7,
+          "reasoning": "Rule `cdp.exfiltration.s3_large_object_egress` fired at severity `high`. MITRE: T1567.002.",
+          "rationale": "80MB GetObject of `acme-analytics-exports` by `dev-alice` from an internal AWS-VPC IP \u2014 sanctioned nightly analytics export, known-good user/bucket combination."
+        },
+        {
+          "alert_id": "cdp.exfiltration.s3_large_object_egress-e133c79b7c88",
+          "rule_id": "cdp.exfiltration.s3_large_object_egress",
+          "ground_truth": "false_positive",
+          "predicted": "true_positive",
+          "confidence": 0.7,
+          "reasoning": "Rule `cdp.exfiltration.s3_large_object_egress` fired at severity `high`. MITRE: T1567.002.",
+          "rationale": "80MB GetObject of `acme-analytics-exports` by `dev-alice` from an internal AWS-VPC IP \u2014 sanctioned nightly analytics export, known-good user/bucket combination."
+        }
+      ],
+      "strict": {
+        "mode": "strict",
+        "n": 20,
+        "correct": 14,
+        "accuracy": 0.7,
+        "tp_class": {
+          "precision": 0.7,
+          "recall": 1.0,
+          "f1": 0.8235294117647058,
+          "tp": 14,
+          "fp": 6,
+          "fn": 0,
+          "tn": 0
+        },
+        "fp_class": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 6,
+          "tn": 14
+        },
+        "confusion": {
+          "true_positive": {
+            "true_positive": 14
+          },
+          "false_positive": {
+            "true_positive": 6
+          }
+        }
+      },
+      "lenient": {
+        "mode": "lenient",
+        "n": 20,
+        "correct": 14,
+        "accuracy": 0.7,
+        "tp_class": {
+          "precision": 0.7,
+          "recall": 1.0,
+          "f1": 0.8235294117647058,
+          "tp": 14,
+          "fp": 6,
+          "fn": 0,
+          "tn": 0
+        },
+        "fp_class": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 6,
+          "tn": 14
+        },
+        "confusion": {
+          "true_positive": {
+            "true_positive": 14
+          },
+          "false_positive": {
+            "true_positive": 6
+          }
+        }
+      },
+      "per_rule_accuracy_strict": {
+        "cdp.credential_access.brute_force_admin_login": {
+          "n": 7,
+          "correct": 4,
+          "accuracy": 0.5714285714285714
+        },
+        "cdp.credential_access.iam_admin_policy_attached": {
+          "n": 1,
+          "correct": 1,
+          "accuracy": 1.0
+        },
+        "cdp.execution.office_spawns_script_host": {
+          "n": 2,
+          "correct": 2,
+          "accuracy": 1.0
+        },
+        "cdp.execution.powershell_encoded_command": {
+          "n": 1,
+          "correct": 1,
+          "accuracy": 1.0
+        },
+        "cdp.exfiltration.s3_large_object_egress": {
+          "n": 8,
+          "correct": 5,
+          "accuracy": 0.625
+        },
+        "cdp.persistence.new_service_install": {
+          "n": 1,
+          "correct": 1,
+          "accuracy": 1.0
+        }
+      }
+    }
+  ]
+}

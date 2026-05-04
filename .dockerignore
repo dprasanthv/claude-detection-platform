@@ -1,0 +1,41 @@
+# Local venv (Linux container has its own Python install)
+.venv/
+venv/
+env/
+
+# Generated artifacts (mounted at runtime, no need in build context)
+data/*.parquet
+data/*.jsonl
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Secrets (compose handles env at runtime; never bake into image)
+.env
+.env.*
+!.env.example
+
+# VCS / IDE / OS
+.git/
+.github/
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# Project docs / planning (not needed inside the image)
+BUILD_PLAN.md

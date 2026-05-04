@@ -1,0 +1,121 @@
+version: 1
+description: Hand-labeled ground-truth for the Phase 5 eval harness. Each row pins an alert id from the
+  deterministic synthetic dataset (see cdp/ingest.py) to a verdict a competent analyst would assign after
+  reading the matched event + enrichment.
+alerts:
+- alert_id: cdp.credential_access.brute_force_admin_login-9a68694f43f0
+  rule_id: cdp.credential_access.brute_force_admin_login
+  verdict: true_positive
+  rationale: "Sustained 50-event admin brute-force burst from a known Tor exit node \u2014 textbook T1110."
+  matched_at: '2026-04-20T09:45:00+00:00'
+- alert_id: cdp.credential_access.brute_force_admin_login-cf229575510a
+  rule_id: cdp.credential_access.brute_force_admin_login
+  verdict: true_positive
+  rationale: "Sustained 50-event admin brute-force burst from a known Tor exit node \u2014 textbook T1110."
+  matched_at: '2026-04-20T09:45:12+00:00'
+- alert_id: cdp.credential_access.brute_force_admin_login-4b433b08aeb5
+  rule_id: cdp.credential_access.brute_force_admin_login
+  verdict: true_positive
+  rationale: "Sustained 50-event admin brute-force burst from a known Tor exit node \u2014 textbook T1110."
+  matched_at: '2026-04-20T09:45:24+00:00'
+- alert_id: cdp.credential_access.brute_force_admin_login-9691cc184878
+  rule_id: cdp.credential_access.brute_force_admin_login
+  verdict: true_positive
+  rationale: "Sustained 50-event admin brute-force burst from a known Tor exit node \u2014 textbook T1110."
+  matched_at: '2026-04-20T09:45:36+00:00'
+- alert_id: cdp.credential_access.brute_force_admin_login-caabe35b3183
+  rule_id: cdp.credential_access.brute_force_admin_login
+  verdict: false_positive
+  rationale: "Small 6-event admin failure burst from a public-but-unflagged IP, immediately followed by\
+    \ a successful auth \u2014 classic 'forgot the password, got it on the 7th try' scenario."
+  matched_at: '2026-04-20T09:12:00+00:00'
+- alert_id: cdp.credential_access.brute_force_admin_login-5c51efbb2230
+  rule_id: cdp.credential_access.brute_force_admin_login
+  verdict: false_positive
+  rationale: "Small 6-event admin failure burst from a public-but-unflagged IP, immediately followed by\
+    \ a successful auth \u2014 classic 'forgot the password, got it on the 7th try' scenario."
+  matched_at: '2026-04-20T09:12:10+00:00'
+- alert_id: cdp.credential_access.brute_force_admin_login-6460f75b5582
+  rule_id: cdp.credential_access.brute_force_admin_login
+  verdict: false_positive
+  rationale: "Small 6-event admin failure burst from a public-but-unflagged IP, immediately followed by\
+    \ a successful auth \u2014 classic 'forgot the password, got it on the 7th try' scenario."
+  matched_at: '2026-04-20T09:12:20+00:00'
+- alert_id: cdp.credential_access.iam_admin_policy_attached-74a41e9105c5
+  rule_id: cdp.credential_access.iam_admin_policy_attached
+  verdict: true_positive
+  rationale: "Direct AttachUserPolicy of AWS-managed AdministratorAccess by `dev-bob` from a Tor exit\
+    \ node \u2014 privilege escalation after credential theft (T1078)."
+  matched_at: '2026-04-20T09:58:00+00:00'
+- alert_id: cdp.execution.powershell_encoded_command-cedd20a5a0fb
+  rule_id: cdp.execution.powershell_encoded_command
+  verdict: true_positive
+  rationale: "PowerShell launched with -EncodedCommand by `alice`, parented by WINWORD.EXE \u2014 Empire-style\
+    \ obfuscated payload (T1059.001)."
+  matched_at: '2026-04-20T09:17:00+00:00'
+- alert_id: cdp.execution.office_spawns_script_host-cedd20a5a0fb
+  rule_id: cdp.execution.office_spawns_script_host
+  verdict: true_positive
+  rationale: "Office product spawned a script interpreter \u2014 textbook malicious-document execution\
+    \ chain (T1566.001 \u2192 T1059)."
+  matched_at: '2026-04-20T09:17:00+00:00'
+- alert_id: cdp.execution.office_spawns_script_host-6266d5a1bf6f
+  rule_id: cdp.execution.office_spawns_script_host
+  verdict: true_positive
+  rationale: "Office product spawned a script interpreter \u2014 textbook malicious-document execution\
+    \ chain (T1566.001 \u2192 T1059)."
+  matched_at: '2026-04-20T09:34:00+00:00'
+- alert_id: cdp.persistence.new_service_install-87302844ce97
+  rule_id: cdp.persistence.new_service_install
+  verdict: true_positive
+  rationale: "`sc.exe create` of an unsigned binary in ProgramData \u2014 service-based persistence primitive\
+    \ (T1543.003)."
+  matched_at: '2026-04-20T09:22:00+00:00'
+- alert_id: cdp.exfiltration.s3_large_object_egress-8f29f8ebcc34
+  rule_id: cdp.exfiltration.s3_large_object_egress
+  verdict: true_positive
+  rationale: "200MB+ GetObject of `acme-customer-pii` by `dev-bob` from a Tor exit node \u2014 T1567.002\
+    \ candidate."
+  matched_at: '2026-04-20T10:12:00+00:00'
+- alert_id: cdp.exfiltration.s3_large_object_egress-4af5a00656df
+  rule_id: cdp.exfiltration.s3_large_object_egress
+  verdict: true_positive
+  rationale: "200MB+ GetObject of `acme-customer-pii` by `dev-bob` from a Tor exit node \u2014 T1567.002\
+    \ candidate."
+  matched_at: '2026-04-20T10:12:10+00:00'
+- alert_id: cdp.exfiltration.s3_large_object_egress-98ac301e1eee
+  rule_id: cdp.exfiltration.s3_large_object_egress
+  verdict: true_positive
+  rationale: "200MB+ GetObject of `acme-customer-pii` by `dev-bob` from a Tor exit node \u2014 T1567.002\
+    \ candidate."
+  matched_at: '2026-04-20T10:12:20+00:00'
+- alert_id: cdp.exfiltration.s3_large_object_egress-061ef582f3aa
+  rule_id: cdp.exfiltration.s3_large_object_egress
+  verdict: true_positive
+  rationale: "200MB+ GetObject of `acme-customer-pii` by `dev-bob` from a Tor exit node \u2014 T1567.002\
+    \ candidate."
+  matched_at: '2026-04-20T10:12:30+00:00'
+- alert_id: cdp.exfiltration.s3_large_object_egress-dc88a0b000b3
+  rule_id: cdp.exfiltration.s3_large_object_egress
+  verdict: true_positive
+  rationale: "200MB+ GetObject of `acme-customer-pii` by `dev-bob` from a Tor exit node \u2014 T1567.002\
+    \ candidate."
+  matched_at: '2026-04-20T10:12:40+00:00'
+- alert_id: cdp.exfiltration.s3_large_object_egress-ffd66ede9a16
+  rule_id: cdp.exfiltration.s3_large_object_egress
+  verdict: false_positive
+  rationale: "80MB GetObject of `acme-analytics-exports` by `dev-alice` from an internal AWS-VPC IP \u2014\
+    \ sanctioned nightly analytics export, known-good user/bucket combination."
+  matched_at: '2026-04-20T09:30:00+00:00'
+- alert_id: cdp.exfiltration.s3_large_object_egress-01e8ec83e5b7
+  rule_id: cdp.exfiltration.s3_large_object_egress
+  verdict: false_positive
+  rationale: "80MB GetObject of `acme-analytics-exports` by `dev-alice` from an internal AWS-VPC IP \u2014\
+    \ sanctioned nightly analytics export, known-good user/bucket combination."
+  matched_at: '2026-04-20T09:30:04+00:00'
+- alert_id: cdp.exfiltration.s3_large_object_egress-e133c79b7c88
+  rule_id: cdp.exfiltration.s3_large_object_egress
+  verdict: false_positive
+  rationale: "80MB GetObject of `acme-analytics-exports` by `dev-alice` from an internal AWS-VPC IP \u2014\
+    \ sanctioned nightly analytics export, known-good user/bucket combination."
+  matched_at: '2026-04-20T09:30:08+00:00'
