@@ -292,6 +292,96 @@ def playbook(
 
 
 @app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", "--host", help="Bind address."),
+    port: int = typer.Option(8000, "--port", help="Port."),
+    reload: bool = typer.Option(False, "--reload", help="Enable uvicorn auto-reload (dev)."),
+    log_level: str = typer.Option("info", "--log-level"),
+) -> None:
+    """Run the FastAPI service (uvicorn). Leaves the detection pipeline lazy —
+    it runs on the first request, not at import time.
+    """
+    import uvicorn
+
+    uvicorn.run("cdp.api:app", host=host, port=port, reload=reload, log_level=log_level)
+
+
+@app.command()
+def demo(
+    claude: bool = typer.Option(
+        False, "--claude", help="Use ClaudeTriager/PlaybookGenerator if ANTHROPIC_API_KEY is set."
+    ),
+    limit: int = typer.Option(3, "--limit", help="Max alerts to triage + playbook."),
+) -> None:
+    """End-to-end demo: ingest → detect → enrich → triage → playbook → print.
+
+    The one command a reviewer can paste to see every phase working against
+    each other. Uses the offline mock triager/playbook generator by default so
+    it runs without an Anthropic API key; pass ``--claude`` to use the live
+    model when one is available.
+    """
+    settings = Settings.load()
+
+    console.rule("[bold cyan]1. Ingest")
+    stats = generate_synthetic_dataset(settings.data_dir)
+    console.print(f"wrote {stats.total_events} events to {stats.output_dir}")
+
+    console.rule("[bold cyan]2. Detect")
+    with Store(data_dir=settings.data_dir) as store:
+        store.load_all()
+        engine = DetectionEngine(store)
+        engine.load_rules()
+        alerts = engine.run_all()
+    console.print(f"produced [bold]{len(alerts)}[/bold] alerts across {len(engine.rules)} rules")
+
+    if not alerts:
+        console.print("[yellow]no alerts — nothing to triage[/yellow]")
+        return
+
+    console.rule("[bold cyan]3. Enrich")
+    db = load_asset_db(DEFAULT_ASSET_DB)
+    # Take the highest-severity alerts first so the demo leads with the
+    # most interesting output.
+    severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "informational": 4}
+    chosen = sorted(alerts, key=lambda a: severity_order.get(a.rule_level, 5))[:limit]
+    enriched_list = [EnrichedAlert(alert=a, enrichment=enrich_alert(a, db)) for a in chosen]
+    console.print(f"enriched {len(enriched_list)} alerts")
+
+    using_claude = claude and settings.has_anthropic_key
+    if claude and not settings.has_anthropic_key:
+        console.print(
+            "[yellow]--claude passed but ANTHROPIC_API_KEY is unset; "
+            "falling back to offline mock[/yellow]"
+        )
+    triager = make_triager(settings) if using_claude else MockTriager()
+    generator = make_playbook_generator(settings) if using_claude else MockPlaybookGenerator()
+
+    console.rule(f"[bold cyan]4. Triage  [dim]({type(triager).__name__})")
+    for ea in enriched_list:
+        tr = triager.triage(ea)
+        color = {
+            "true_positive": "red",
+            "needs_investigation": "yellow",
+            "false_positive": "green",
+        }[tr.verdict]
+        console.print(
+            f"[bold]{ea.alert.rule_title}[/bold]  → "
+            f"[{color}]{tr.verdict}[/] (conf {tr.confidence:.2f})"
+        )
+        console.print(f"  [dim]{tr.reasoning}[/dim]")
+
+    console.rule(f"[bold cyan]5. Playbook  [dim]({type(generator).__name__})")
+    for ea in enriched_list:
+        pb = generator.generate(ea)
+        console.print(f"[bold]{pb.title}[/bold]")
+        for i, step in enumerate(pb.steps, 1):
+            console.print(f"  {i}. {step}")
+        console.print()
+
+    console.rule("[bold green]Demo complete")
+
+
+@app.command()
 def eval(
     mock: bool = typer.Option(False, "--mock", help="Run MockTriager (default if no flag)."),
     claude: bool = typer.Option(False, "--claude", help="Run ClaudeTriager (requires ANTHROPIC_API_KEY)."),

@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from cdp.cli import app
@@ -25,7 +26,11 @@ def test_version_prints_package_version() -> None:
 def test_help_lists_every_subcommand() -> None:
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    for cmd in ("ingest", "detect", "validate", "enrich", "triage", "playbook", "version"):
+    for cmd in (
+        "ingest", "detect", "validate",
+        "enrich", "triage", "playbook",
+        "eval", "serve", "demo", "version",
+    ):
         assert cmd in result.stdout
 
 
@@ -310,4 +315,58 @@ def test_playbook_with_alert_id_renders_a_template(
     assert "T1543.003" in pb["mitre_techniques"]
     # Title was rendered with the actual hostname from the matched event.
     assert "SRV-DB-01" in pb["title"]
+
+
+# ---------- demo ----------
+
+
+def test_demo_runs_end_to_end_with_mock(
+    tmp_data_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`cdp demo` should ingest → detect → enrich → triage → playbook without
+    touching the network, producing banners for all five phases."""
+    monkeypatch.setenv("CDP_DATA_DIR", str(tmp_data_dir))
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    result = runner.invoke(app, ["demo", "--limit", "2"])
+    assert result.exit_code == 0, result.stdout
+    for banner in ("1. Ingest", "2. Detect", "3. Enrich", "4. Triage", "5. Playbook", "Demo complete"):
+        assert banner in result.stdout
+    assert "MockTriager" in result.stdout
+    assert "MockPlaybookGenerator" in result.stdout
+
+
+def test_demo_falls_back_to_mock_when_claude_flag_without_key(
+    tmp_data_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CDP_DATA_DIR", str(tmp_data_dir))
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    result = runner.invoke(app, ["demo", "--claude", "--limit", "1"])
+    assert result.exit_code == 0, result.stdout
+    assert "falling back to offline mock" in result.stdout
+    assert "MockTriager" in result.stdout
+
+
+# ---------- serve ----------
+
+
+def test_serve_invokes_uvicorn_with_cdp_api_app(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`cdp serve` should hand off to uvicorn with our module-level app. We
+    stub the uvicorn.run import to avoid actually binding a socket."""
+    calls: list[dict] = []
+
+    def fake_run(app_target: str, **kwargs: object) -> None:
+        calls.append({"app": app_target, **kwargs})
+
+    import uvicorn
+    monkeypatch.setattr(uvicorn, "run", fake_run)
+
+    result = runner.invoke(app, ["serve", "--host", "0.0.0.0", "--port", "9000"])
+    assert result.exit_code == 0, result.stdout
+    assert calls == [{
+        "app": "cdp.api:app",
+        "host": "0.0.0.0",
+        "port": 9000,
+        "reload": False,
+        "log_level": "info",
+    }]
 
