@@ -292,6 +292,43 @@ def playbook(
 
 
 @app.command()
+def eval(
+    mock: bool = typer.Option(False, "--mock", help="Run MockTriager (default if no flag)."),
+    claude: bool = typer.Option(False, "--claude", help="Run ClaudeTriager (requires ANTHROPIC_API_KEY)."),
+    both: bool = typer.Option(False, "--both", help="Shorthand for --mock --claude."),
+    out_name: str = typer.Option(
+        "latest", "--out-name",
+        help="Report filename stem written under evals/reports/.",
+    ),
+    quiet: bool = typer.Option(False, "--quiet"),
+) -> None:
+    """Run the Phase 5 eval harness against `evals/ground_truth.yaml`.
+
+    Always renders both a Markdown and a JSON report. With no flags, runs the
+    offline mock so the command works without an Anthropic API key.
+    """
+    # `evals/` is a top-level repo directory rather than a subpackage of `cdp`,
+    # so the `cdp` console-script's sys.path doesn't include it. Add the repo
+    # root explicitly so `import evals.run_eval` resolves.
+    repo_root = Path(__file__).resolve().parent.parent
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+    from evals.run_eval import main as eval_main
+
+    argv: list[str] = []
+    if mock:
+        argv.append("--mock")
+    if claude:
+        argv.append("--claude")
+    if both:
+        argv.append("--both")
+    argv += ["--out-name", out_name]
+    if quiet:
+        argv.append("--quiet")
+    raise typer.Exit(code=eval_main(argv))
+
+
+@app.command()
 def version() -> None:
     """Print the installed package version."""
     import cdp

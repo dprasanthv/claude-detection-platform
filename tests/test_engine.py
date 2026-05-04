@@ -15,15 +15,19 @@ import pytest
 from cdp.engine import DetectionEngine
 from cdp.store import Store
 
+# 50 TP brute-force from the Tor exit node + 6 FP small-burst from an internal
+# IP (the Phase 5 eval ground-truth signal); 25 TP S3 egress to acme-customer-pii
+# from the Tor IP + 3 FP analytics-export from an internal IP. See `_benign_but_rule_firing_*`
+# in `cdp/ingest.py` for the rationale.
 EXPECTED_PER_RULE_COUNTS = {
-    "cdp.credential_access.brute_force_admin_login": 50,
+    "cdp.credential_access.brute_force_admin_login": 56,
     "cdp.credential_access.iam_admin_policy_attached": 1,
     "cdp.execution.powershell_encoded_command": 1,
     "cdp.execution.office_spawns_script_host": 2,
     "cdp.persistence.new_service_install": 1,
-    "cdp.exfiltration.s3_large_object_egress": 25,
+    "cdp.exfiltration.s3_large_object_egress": 28,
 }
-EXPECTED_TOTAL_ALERTS = sum(EXPECTED_PER_RULE_COUNTS.values())  # 80
+EXPECTED_TOTAL_ALERTS = sum(EXPECTED_PER_RULE_COUNTS.values())  # 89
 REQUIRED_TACTICS = frozenset(
     {"credential_access", "execution", "persistence", "exfiltration"}
 )

@@ -174,6 +174,50 @@ def _attack_auth() -> list[dict]:
     ]
 
 
+def _benign_but_rule_firing_auth() -> list[dict]:
+    """6 admin login failures from a *legitimate-but-external* IP, followed by a
+    successful authentication — the brute-force rule fires (the rule's internal-
+    range filter only excludes RFC1918), but a competent triager should classify
+    these as false positives.
+
+    Scenario: a sysadmin works from a coffee-shop / hotel network with public IP
+    ``198.51.100.10`` (TEST-NET-2, used here as a stand-in for any corp-VPN /
+    home-ISP egress not in the threat-intel feed). She fumbles her admin
+    password 6 times in ~30 seconds, then logs in successfully on the 7th try.
+    The Sigma rule fires for each of the 6 failures because the IP is not
+    RFC1918; the *triager*'s job is to recognise (a) the small burst size
+    (6 vs 50), (b) absence of a threat-intel hit on the IP, and (c) the
+    immediately-following successful authentication, and downgrade to FP.
+    This is the eval's primary FP signal.
+    """
+    benign_ip = "198.51.100.10"
+    start = BASE_TIME + timedelta(minutes=12)
+    events: list[dict] = [
+        {
+            "timestamp": _iso(start + timedelta(seconds=i * 5)),
+            "hostname": "AUTH-SVC-01",
+            "username": "admin",
+            "result": "failure",
+            "source_ip": benign_ip,
+            "auth_type": "password",
+        }
+        for i in range(6)
+    ]
+    # Successful login immediately after the 6 failures — the "she got it right
+    # on the 7th try" signal a triager can use to disambiguate.
+    events.append(
+        {
+            "timestamp": _iso(start + timedelta(seconds=35)),
+            "hostname": "AUTH-SVC-01",
+            "username": "admin",
+            "result": "success",
+            "source_ip": benign_ip,
+            "auth_type": "password",
+        }
+    )
+    return events
+
+
 # ---------- AWS CloudTrail ----------
 
 def _benign_cloudtrail(rng: random.Random) -> list[dict]:
@@ -246,6 +290,38 @@ def _attack_cloudtrail() -> list[dict]:
     return [iam_attack, *egress]
 
 
+def _benign_but_rule_firing_cloudtrail() -> list[dict]:
+    """3 large S3 GetObjects that look exfil-shaped but are a legitimate
+    analytics export job — the rule fires, the triager should mark FP.
+
+    Scenario: `dev-alice` (the analytics-platform owner per `enrichment/assets.yaml`)
+    runs the nightly export from `10.0.5.12` (an internal AWS-VPC IP) into
+    `acme-analytics-exports`, a known sanctioned bucket. The Sigma rule has no
+    bucket-allowlist or internal-IP exclusion, so it fires; a thoughtful
+    triager picks up on the internal IP + analytics bucket + known-good user
+    + small burst (3 vs 25) and downgrades.
+    """
+    start = BASE_TIME + timedelta(minutes=30)
+    return [
+        {
+            "timestamp": _iso(start + timedelta(seconds=i * 4)),
+            "eventName": "GetObject",
+            "eventSource": "s3.amazonaws.com",
+            "userIdentity_userName": "dev-alice",
+            "userIdentity_type": "IAMUser",
+            "sourceIPAddress": "10.0.5.12",
+            "awsRegion": "us-east-1",
+            "requestParameters": json.dumps(
+                {"bucketName": "acme-analytics-exports", "key": f"nightly/{i}.parquet"}
+            ),
+            "responseElements": "{}",
+            "errorCode": None,
+            "bytes_out": 80_000_000,
+        }
+        for i in range(3)
+    ]
+
+
 # ---------- Public API ----------
 
 def generate_synthetic_dataset(data_dir: Path, seed: int = SYNTHETIC_SEED) -> DatasetStats:
@@ -253,10 +329,20 @@ def generate_synthetic_dataset(data_dir: Path, seed: int = SYNTHETIC_SEED) -> Da
     data_dir.mkdir(parents=True, exist_ok=True)
     rng = random.Random(seed)
 
+    # `_benign_but_rule_firing_*` events fire detection rules but are deliberately
+    # benign in domain context. They give the Phase 5 eval harness a real
+    # TP-vs-FP signal — without them every alert would come from a planted
+    # attack and the eval would be uninteresting.
     tables: dict[str, list[dict]] = {
         "windows_process_creation": _benign_windows(rng) + _attack_windows(),
-        "authentication": _benign_auth(rng) + _attack_auth(),
-        "aws_cloudtrail": _benign_cloudtrail(rng) + _attack_cloudtrail(),
+        "authentication": (
+            _benign_auth(rng) + _attack_auth() + _benign_but_rule_firing_auth()
+        ),
+        "aws_cloudtrail": (
+            _benign_cloudtrail(rng)
+            + _attack_cloudtrail()
+            + _benign_but_rule_firing_cloudtrail()
+        ),
     }
 
     stats = DatasetStats(output_dir=data_dir)

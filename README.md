@@ -16,14 +16,14 @@ docker compose build
 docker compose run --rm cdp cdp version
 # 0.1.0
 
-# Generate the synthetic dataset (~529 events across 3 Parquet tables under ./data)
+# Generate the synthetic dataset (~538 events across 3 Parquet tables under ./data)
 docker compose run --rm cdp cdp ingest --synthetic
 
 # Query the dataset — count admin login failures grouped by source IP
 # (the 50-event burst from 185.220.101.45 is the planted T1110 brute force)
 docker compose run --rm cdp python -c "from cdp.store import Store; s = Store(); s.load_all(); print(s.query(\"select source_ip, count(*) as failures from authentication where username='admin' and result='failure' group by source_ip order by failures desc\"))"
 
-# Run all Sigma rules under ./detections — emits 80 alerts across 6 rules / 4 tactics
+# Run all Sigma rules under ./detections — emits 89 alerts across 6 rules / 4 tactics
 docker compose run --rm cdp cdp detect --limit 10
 
 # Same thing as JSON for downstream piping (one alert per matched event)

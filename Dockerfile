@@ -16,6 +16,7 @@ COPY pyproject.toml README.md ./
 COPY cdp/ ./cdp/
 COPY detections/ ./detections/
 COPY enrichment/ ./enrichment/
+COPY evals/ ./evals/
 COPY tests/ ./tests/
 
 # Editable install + dev extras (ruff, mypy, pytest).

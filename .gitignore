@@ -26,10 +26,13 @@ htmlcov/
 data/
 !data/.gitkeep
 
-# Eval reports (generated)
+# Eval reports (generated). The mock-only seed run is checked in so the repo
+# shows a representative eval report without needing an Anthropic API key.
 evals/reports/*.md
 evals/reports/*.json
 !evals/reports/.gitkeep
+!evals/reports/seed-run.md
+!evals/reports/seed-run.json
 
 # Secrets / env
 .env

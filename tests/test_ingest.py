@@ -29,7 +29,9 @@ def test_generate_synthetic_creates_three_tables(tmp_path: Path) -> None:
         assert (tmp_path / f"{name}.parquet").exists()
         assert (tmp_path / f"{name}.jsonl").exists()
     assert stats.total_events == sum(stats.per_table.values())
-    # 3 * 150 benign + planted attacks (3 windows + 50 auth + 26 aws).
+    # 3 * 150 benign + planted attacks (3 windows + 50 auth + 26 aws) +
+    # FP-shape benign-but-rule-firing events (6 auth + 3 aws). See
+    # `_benign_but_rule_firing_*` in `cdp/ingest.py`.
     assert stats.total_events > 500
 
 
@@ -107,12 +109,18 @@ def test_planted_t1567_002_s3_egress_burst(synthetic_dataset_dir: Path) -> None:
         synthetic_dataset_dir / "aws_cloudtrail.parquet",
         "eventName='GetObject' AND eventSource='s3.amazonaws.com' AND bytes_out > 50000000",
     )
-    assert n == 25
+    # 25 attack (acme-customer-pii from the Tor IP) + 3 FP-shape (acme-analytics-exports
+    # from an internal IP) — both fire the rule, eval ground truth distinguishes them.
+    assert n == 28
 
 
-def test_no_benign_admin_failures_from_external_ips(synthetic_dataset_dir: Path) -> None:
+def test_admin_failures_from_external_ips_are_only_attack_or_fp_burst(
+    synthetic_dataset_dir: Path,
+) -> None:
     """The brute-force rule's ``not internal_ranges`` filter relies on this:
-    every benign admin failure must come from a 10./192.168./172.16. IP."""
+    every benign admin failure that *isn't* part of either planted scenario
+    (50-event Tor burst or 6-event coffee-shop burst) must come from a
+    10./192.168./172.16. IP."""
     n = _count(
         synthetic_dataset_dir / "authentication.parquet",
         "username='admin' AND result='failure' "
@@ -120,7 +128,43 @@ def test_no_benign_admin_failures_from_external_ips(synthetic_dataset_dir: Path)
         "OR source_ip LIKE '192.168.%' "
         "OR source_ip LIKE '172.16.%')",
     )
-    assert n == 50, "only the 50 planted brute-force events should match"
+    # 50 TP attack burst (185.220.101.45) + 6 FP burst (198.51.100.10).
+    assert n == 56
+
+
+# ---------- FP-shape benign-but-rule-firing events ----------
+
+
+def test_benign_but_rule_firing_admin_failures_from_legit_external_ip(
+    synthetic_dataset_dir: Path,
+) -> None:
+    """6 admin failures from public-but-legitimate IP 198.51.100.10 (coffee-shop
+    network), followed by a successful login — the brute-force rule fires,
+    but ground truth labels these failures FP. Phase 5 eval signal."""
+    failures = _count(
+        synthetic_dataset_dir / "authentication.parquet",
+        "username='admin' AND result='failure' AND source_ip='198.51.100.10'",
+    )
+    assert failures == 6
+    successes = _count(
+        synthetic_dataset_dir / "authentication.parquet",
+        "username='admin' AND result='success' AND source_ip='198.51.100.10'",
+    )
+    assert successes == 1, "the 'got it on the 7th try' disambiguation signal"
+
+
+def test_benign_but_rule_firing_s3_egress_from_internal_ip(
+    synthetic_dataset_dir: Path,
+) -> None:
+    """3 large S3 GetObjects from internal IP 10.0.5.12 by dev-alice into the
+    analytics-exports bucket — the s3-egress rule fires, but ground truth
+    labels them FP. Phase 5 eval signal."""
+    n = _count(
+        synthetic_dataset_dir / "aws_cloudtrail.parquet",
+        "eventName='GetObject' AND bytes_out > 50000000 "
+        "AND sourceIPAddress='10.0.5.12' AND userIdentity_userName='dev-alice'",
+    )
+    assert n == 3
 
 
 # ---------- mordor extension point ----------
